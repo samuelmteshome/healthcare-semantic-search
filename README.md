@@ -8,7 +8,7 @@ A semantic search engine over 53 NIH patient-education documents in three areas:
 language. The app returns the most relevant passages from the original NIH documents, each
 with its title and a link to the source page. It does not generate answers.
 
-- **Live app:** _link added after deployment_
+- **Live app:** https://brain-health-search.streamlit.app
 - **Code:** https://github.com/samuelmteshome/healthcare-semantic-search
 - **Dataset:** [`lavita/MedQuAD`](https://huggingface.co/datasets/lavita/MedQuAD) on the Hugging Face Hub
 
@@ -22,7 +22,7 @@ with its title and a link to the source page. It does not generate answers.
 | 2. Chunk + embed the data | `build_index.py`: 120-word chunks with 30-word overlap, embedded with `all-MiniLM-L6-v2` |
 | 3. Store in a Chroma vector DB | `build_index.py` writes a persistent Chroma collection (`chromadb/`) with ids, text, embeddings and metadata |
 | 4. Build a search app | `app.py`: Streamlit app that embeds the query and retrieves the top 5 chunks from Chroma |
-| 5. Publish the app | Streamlit Community Cloud (public link above). See Deployment for why not Hugging Face Spaces |
+| 5. Publish the app | Live at https://brain-health-search.streamlit.app (Streamlit Community Cloud). See Deployment for why not Hugging Face Spaces |
 
 ## Dataset
 
