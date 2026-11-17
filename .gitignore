@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+# The Chroma index is rebuilt by build_index.py (and at Docker build time)
+chromadb/
+.env
+*.token
