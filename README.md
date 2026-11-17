@@ -1,26 +1,16 @@
----
-title: Brain & Health Search
-emoji: 🧠
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
-short_description: Semantic search over NIH MedlinePlus health topics
----
-
 # Brain & Health Search
 
 *Explore trustworthy medical information using semantic search.*
 
-A semantic search engine over 45 NIH MedlinePlus health topic summaries, built for the
-AIPI 510 (Data Sourcing for Analytics) semantic search activity. You type a health question in
-plain language. The app returns the most relevant passages from the original MedlinePlus
-documents, each with its title and a link to the source page. It does not generate answers.
+A semantic search engine over 53 NIH patient-education documents in three areas:
+**neurology, cardiology, and anesthesia/perioperative care**. Built for the AIPI 510
+(Data Sourcing for Analytics) semantic search activity. You type a health question in plain
+language. The app returns the most relevant passages from the original NIH documents, each
+with its title and a link to the source page. It does not generate answers.
 
-- **Live app:** https://huggingface.co/spaces/samuelteshome/healthcare-semantic-search
-- **Dataset:** https://huggingface.co/datasets/samuelteshome/medlineplus-health-topics
+- **Live app:** _link added after deployment_
 - **Code:** https://github.com/samuelmteshome/healthcare-semantic-search
+- **Dataset:** [`lavita/MedQuAD`](https://huggingface.co/datasets/lavita/MedQuAD) on the Hugging Face Hub
 
 > Educational information only. This tool does not provide individualized medical advice.
 
@@ -28,54 +18,69 @@ documents, each with its title and a link to the source page. It does not genera
 
 | Requirement | How this project meets it |
 |---|---|
-| 1. Pick a dataset | 45 MedlinePlus health topics (neurology, cardiovascular, diabetes and chronic disease, general health), published as a Hugging Face dataset |
+| 1. Pick a dataset | 53 documents selected from the public Hugging Face dataset `lavita/MedQuAD` (NIH question-answer pairs) |
 | 2. Chunk + embed the data | `build_index.py`: 120-word chunks with 30-word overlap, embedded with `all-MiniLM-L6-v2` |
 | 3. Store in a Chroma vector DB | `build_index.py` writes a persistent Chroma collection (`chromadb/`) with ids, text, embeddings and metadata |
 | 4. Build a search app | `app.py`: Streamlit app that embeds the query and retrieves the top 5 chunks from Chroma |
-| 5. Publish on Hugging Face Spaces | Docker Space (see Deployment) |
+| 5. Publish the app | Streamlit Community Cloud (public link above). See Deployment for why not Hugging Face Spaces |
 
 ## Dataset
 
-[MedlinePlus](https://medlineplus.gov/) is the National Library of Medicine's patient
-education site. NLM publishes all health topics as a daily [XML file](https://medlineplus.gov/xml.html).
-`prepare_data.py` downloads that file, keeps 45 English topics chosen by title, strips the
-HTML from each topic's summary, and writes `data/medlineplus_topics.jsonl` (one topic per line:
-`doc_id`, `title`, `url`, `text`). The same file is published on the Hugging Face Hub as
-[`samuelteshome/medlineplus-health-topics`](https://huggingface.co/datasets/samuelteshome/medlineplus-health-topics).
-`build_index.py` loads it from the Hub and falls back to the local copy if the Hub is unreachable.
+[MedQuAD](https://github.com/abachaa/MedQuAD) (Medical Question Answering Dataset) contains
+question-answer pairs built from 12 trusted NIH websites. Each record has a question
+("What are the symptoms of Stroke?"), the answer text from the NIH page, the topic
+(`question_focus`), the source website and the page URL. This project loads the Hugging Face
+version, [`lavita/MedQuAD`](https://huggingface.co/datasets/lavita/MedQuAD) (47,441 records),
+with the `datasets` library.
 
-Topics include Stroke (and ischemic, hemorrhagic, rehabilitation), Dementia, Alzheimer's
-Disease, Lewy Body Dementia, Parkinson's Disease, Delirium, Memory, Epilepsy, Concussion,
-Multiple Sclerosis, High Blood Pressure, Heart Failure, Atrial Fibrillation, Cholesterol,
-Diabetes (type 1, type 2, prediabetes, complications, A1C), Chronic Kidney Disease, COPD,
-Asthma, Depression, Healthy Aging, Healthy Sleep, Exercise, Nutrition, Falls and others.
-The full list is `TOPICS` in `prepare_data.py`. The text is not edited beyond HTML removal.
-No patient-level data is used.
+`build_index.py` keeps 53 topics and merges all question-answer pairs of a topic into one
+document:
+
+| Area | Docs | Source | Topics (examples) |
+|---|---|---|---|
+| Neurology | 23 | NINDS, MedlinePlus | stroke, TIA, dementia, Alzheimer's, Lewy body dementia, Parkinson's, epilepsy, migraine, TBI, MS, myasthenia gravis, Guillain-Barré, coma, cerebral hypoxia, syncope, delirium |
+| Cardiology | 16 | NHLBI | heart attack, heart failure, atrial fibrillation, arrhythmia, coronary heart disease, angina, high/low blood pressure, sudden cardiac arrest, cardiomyopathy, valve disease, cardiogenic shock, PE, DVT, ECG |
+| Anesthesia & perioperative | 14 | MedlinePlus, Genetics Home Reference, NHLBI | anesthesia, surgery, after surgery, heart surgery, CABG, critical care, pain relievers, blood transfusion, malignant hyperthermia, pseudocholinesterase deficiency, respiratory failure, ARDS, oxygen therapy, sleep apnea |
+
+The full list is `TOPICS` in `build_index.py`. Answer text is used as published; only extra
+whitespace is collapsed. The selected documents are also saved to `data/medquad_subset.jsonl`,
+which `build_index.py` uses if the Hugging Face Hub is unreachable. No patient-level data is used.
+
+**Links.** MedQuAD predates its 2019 paper, and its NINDS page addresses now return 404.
+`build_index.py` maps each NINDS topic to its current NINDS page (all 53 result links were
+checked and return HTTP 200, November 2026). The original MedQuAD link is kept in each
+document as `source_url`.
+
+**License and citation.** MedQuAD is released under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Ben Abacha A, Demner-Fushman D.
+A question-entailment approach to question answering. *BMC Bioinformatics.* 2019.
+[doi:10.1186/s12859-019-3119-4](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-3119-4).
+The `lavita/MedQuAD` version omits answers from subsets that MedlinePlus restricts by copyright.
 
 ## Semantic search vs. keyword search
 
-Keyword search matches the exact words in your query. A search for "tremor and slow movement"
-only finds pages that contain those words.
+Keyword search matches the exact words in your query. A search for "prolonged paralysis after
+succinylcholine" only finds pages that contain those words.
 
 Semantic search compares meaning. An embedding model turns every passage and every query into
 a vector (here, 384 numbers) so that texts with similar meaning sit close together. The app
-finds the passages whose vectors are closest to the query's vector. "Tremor and slow movement"
-returns the Parkinson's disease passage that describes "trembling of hands" and "slowness of
-movement", even though the wording differs.
+finds the passages whose vectors are closest to the query's vector. "Prolonged paralysis after
+succinylcholine" returns the pseudocholinesterase deficiency passage, and "muscle rigidity and
+high fever after anesthetic gas" returns malignant hyperthermia, even when the wording differs.
 
 ## Architecture
 
 ```
-MedlinePlus XML ──prepare_data.py──▶ 45 documents (HF dataset)
+lavita/MedQuAD (Hugging Face) ──▶ 53 topic documents (neuro / cardio / anesthesia)
                                          │
                      build_index.py      ▼
-                 120-word chunks, 30-word overlap  (+ title, url, ids, position)
+                 120-word chunks, 30-word overlap  (+ title, url, specialty, ids, position)
                                          │
                  all-MiniLM-L6-v2        ▼
                  one 384-d embedding per chunk
                                          │
                                          ▼
-                 ChromaDB collection "medlineplus" (cosine distance)
+                 ChromaDB collection "brain_health" (cosine distance)
                                          ▲
 user query ──▶ same embedding model ─────┘  top-5 nearest chunks ──▶ Streamlit results
 ```
@@ -87,19 +92,19 @@ persistent index and a Streamlit front end.
 
 ## Chunking
 
-**Why chunk?** An embedding squeezes a whole text into one vector. A 1,000-word topic page
-about stroke covers risk factors, symptoms, diagnosis and treatment, so its single vector is
-a blur of all of them. Splitting the page into short passages gives each passage a focused
-vector. A question about warning signs can then match the passage about warning signs,
-and the user reads that passage instead of the whole page.
+**Why chunk?** An embedding squeezes a whole text into one vector. The NHLBI heart failure
+document is over 2,000 words and covers causes, symptoms, diagnosis and treatment, so a single
+vector would be a blur of all of them. Splitting the document into short passages gives each
+passage a focused vector. A question about symptoms can then match the passage about
+symptoms, and the user reads that passage instead of the whole document.
 
 **Strategy.** Each document is split into windows of `CHUNK_SIZE = 120` words. Each new window
 starts `CHUNK_SIZE - CHUNK_OVERLAP = 90` words after the previous one, so consecutive chunks
 share `CHUNK_OVERLAP = 30` words. Both constants sit at the top of `build_index.py`.
 
-**Why overlap?** A fixed cut can split a sentence or list in half (for example, the F.A.S.T.
-stroke signs). With overlap, text near a boundary appears in both neighbouring chunks, so at
-least one chunk holds the full idea.
+**Why overlap?** A fixed cut can split a sentence or list in half (for example, a list of
+stroke symptoms). With overlap, text near a boundary appears in both neighbouring chunks, so
+at least one chunk holds the full idea.
 
 **Small vs. large chunks.** Small chunks give precise matches but can lose context (a list
 without its heading). Large chunks keep context but mix topics, which dilutes the embedding
@@ -111,27 +116,30 @@ that limit.
 the last words are always kept and no tiny tail chunk repeats the previous one. Short
 documents become a single chunk. Empty and duplicate chunks are skipped.
 
-**Metadata.** Every chunk stores `title`, `url`, `doc_id` (parent document) and
-`chunk_position`, plus a unique id such as `mplus-8-chunk4` (Stroke, 5th chunk). The app uses
-this to show the source title and link under each passage, so every result traces back to
-its original MedlinePlus page.
+**Metadata.** Every chunk stores `title`, `url`, `doc_id` (parent document), `source`,
+`specialty` and `chunk_position`, plus a unique id such as `NINDS-0000261-chunk0` (first chunk
+of the NINDS stroke document). The app shows the title, link, specialty and chunk position
+under each passage, so every result traces back to its source page.
 
 **Diagnostics** (`python build_index.py`):
 
 ```
 === Chunking diagnostics ===
 Chunk size / overlap:   120 / 30 words
-Documents processed:    45
-Total chunks generated: 302
-Average words / chunk:  113.8 (min 32, max 120)
+Documents processed:    53
+  Anesthesia & Perioperative: 14
+  Cardiology: 16
+  Neurology: 23
+Total chunks generated: 912
+Average words / chunk:  116.9 (min 31, max 120)
 
 Example chunks from 'Stroke':
-[mplus-8-chunk0] (120 words)
-What is a stroke? A stroke happens when there is a loss of blood flow to part of the brain. ...
+[NINDS-0000261-chunk0] (120 words)
+What is (are) Stroke ? A stroke occurs when the blood supply to part of the brain is suddenly interrupted ...
 ```
 
-The script prints every chunk of the Stroke page, so you can see the 30-word overlap between
-neighbours.
+The script prints every chunk of the stroke document, so you can see the 30-word overlap
+between neighbours.
 
 ## Embedding model
 
@@ -152,44 +160,52 @@ streamlit run app.py           # http://localhost:8501
 python -m pytest -q tests      # smoke test: chunking, indexing, retrieval
 ```
 
-To rebuild the dataset from the latest MedlinePlus XML: `python prepare_data.py`
-(add `--push` to upload it to the Hub; requires `hf auth login`).
+## Deployment
 
-## Deployment (Hugging Face Spaces)
+**Streamlit Community Cloud (live app).** Free hosting for public GitHub repos.
 
-The Space uses the Docker SDK (see the YAML header of this README). The `Dockerfile`
-installs CPU-only PyTorch and the requirements, then runs `build_index.py` during the image
-build. The image therefore ships with the dataset, the model and a ready Chroma index, and
-the app starts without your computer. Space storage is not persistent, so the app also
-rebuilds the index on startup if it is ever missing. The model and index load once per
-server process (`st.cache_resource`), not on every search.
+1. Sign in at https://share.streamlit.io with GitHub.
+2. Create app → repository `samuelmteshome/healthcare-semantic-search`, branch `main`, main file `app.py`.
+3. Advanced settings → Python 3.12 → Deploy.
 
-To deploy your own copy:
+The host installs `requirements.txt` (CPU-only PyTorch, so no GPU libraries). The index
+is not committed: hosted storage is not persistent, so on first start `app.py` downloads the
+dataset and model and rebuilds the index (about 30 seconds). The model and index then load once
+per server process (`st.cache_resource`), not on every search.
+
+**Hugging Face Spaces.** The assignment suggests Spaces, but as of November 2026 Hugging Face
+only hosts Gradio and Docker Spaces on free CPU for PRO accounts (`402 Payment Required` for
+free accounts), and the Streamlit SDK option is gone. The included `Dockerfile` (port 7860,
+index built at image build time) works for a Docker Space on a PRO account:
 
 ```bash
 hf repo create <user>/healthcare-semantic-search --repo-type space --space-sdk docker
-git remote add space https://huggingface.co/spaces/<user>/healthcare-semantic-search
-git push space main
 ```
+
+A Docker Space also needs this YAML header at the top of the Space's README:
+`sdk: docker` and `app_port: 7860`.
 
 ## Example searches
 
 - What are common warning signs of stroke?
 - What causes memory problems in older adults?
 - How can high blood pressure affect the brain?
-- What are common symptoms of diabetes?
-- Sudden confusion in a hospitalized older patient (returns Delirium)
+- What are the risks of general anesthesia?
+- Prolonged paralysis after succinylcholine (returns pseudocholinesterase deficiency)
+- Chest pain when climbing stairs (returns heart failure, coronary heart disease, heart attack)
 
 ## Limitations
 
-- Small corpus (45 topics), so many questions have no good passage; the app still returns the 5 nearest.
-- MedlinePlus summaries are short overviews. Some links between topics are thin; for example, "How can high blood pressure affect the brain?" returns blood-pressure passages rather than a passage on the brain.
-- Several of the top 5 results can come from the same document.
+- Small corpus (53 topics), so many questions have no good passage; the app still returns the 5 nearest.
+- MedQuAD answers were collected before 2019 and may not reflect current guidelines.
+- MedQuAD questions are templates ("What is (are) Stroke ?"); they are kept because they label each answer.
+- Long NHLBI documents produce many chunks, so cardiology passages can crowd the top 5. Several results can come from the same document.
+- "How can high blood pressure affect the brain?" returns blood-pressure passages rather than a focused passage on the brain.
 - `all-MiniLM-L6-v2` is a general-purpose English model, not trained on medical text.
-- The dataset is a snapshot of the MedlinePlus XML (November 2026); MedlinePlus pages may change.
 - Retrieval only: the app returns source text and never interprets it for a specific patient.
 
-## License and credit
+## Credit
 
-Health topic text: MedlinePlus, U.S. National Library of Medicine (public domain).
+Data: MedQuAD (Ben Abacha and Demner-Fushman, 2019, CC BY 4.0), built from NIH websites
+(NINDS, NHLBI, MedlinePlus, Genetics Home Reference).
 Code by Samuel Teshome for Duke AIPI 510.

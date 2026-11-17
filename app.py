@@ -1,7 +1,5 @@
 """Step 3: Streamlit search app over the ChromaDB index built by build_index.py."""
 
-from pathlib import Path
-
 import chromadb
 import streamlit as st
 from chromadb.config import Settings
@@ -14,7 +12,7 @@ EXAMPLES = [
     "What are common warning signs of stroke?",
     "What causes memory problems in older adults?",
     "How can high blood pressure affect the brain?",
-    "What are common symptoms of diabetes?",
+    "What are the risks of general anesthesia?",
 ]
 
 
@@ -24,7 +22,7 @@ def load_resources():
     model = SentenceTransformer(MODEL_NAME)
     client = chromadb.PersistentClient(path=DB_DIR, settings=Settings(anonymized_telemetry=False))
     names = [c if isinstance(c, str) else c.name for c in client.list_collections()]
-    if not Path(DB_DIR).exists() or COLLECTION not in names:
+    if COLLECTION not in names:
         # Space storage is not persistent: rebuild the (small) index if it is missing.
         build_index(load_documents(), db_dir=DB_DIR, model=model)
     return model, client.get_collection(COLLECTION)
@@ -45,7 +43,8 @@ st.set_page_config(page_title="Brain & Health Search", page_icon="🧠")
 st.title("Brain & Health Search")
 st.write("Explore trustworthy medical information using semantic search.")
 st.caption(
-    "Educational information from NIH MedlinePlus. This tool retrieves passages from "
+    "Educational information from NIH sources (MedQuAD: NINDS, NHLBI, MedlinePlus, GHR) on "
+    "neurology, cardiology, and anesthesia. This tool retrieves passages from "
     "existing documents; it does not provide individualized medical advice. "
     "In an emergency, call 911."
 )
@@ -71,5 +70,5 @@ if query.strip():
         with st.container(border=True):
             st.markdown(f"#### [{r['title']}]({r['url']})")
             st.write(r["text"])
-            st.caption(f"Cosine similarity: {r['similarity']:.3f} · chunk {r['chunk_position']} · "
-                       f"source: {r['url']}")
+            st.caption(f"{r['specialty']} · {r['source']} · chunk {r['chunk_position']} · "
+                       f"cosine similarity: {r['similarity']:.3f} · {r['url']}")

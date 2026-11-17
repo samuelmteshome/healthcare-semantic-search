@@ -32,5 +32,5 @@ def test_index_and_search(tmp_path):
     res = col.query(query_embeddings=model.encode(["warning signs of stroke"]).tolist(), n_results=3)
     meta = res["metadatas"][0][0]
     assert "Stroke" in meta["title"]
-    assert meta["url"].startswith("https://medlineplus.gov/")
+    assert meta["url"].startswith("http")
     assert 0 < 1 - res["distances"][0][0] <= 1
